@@ -1,67 +1,160 @@
 # Copper ↔ Mailchimp Sync
 
-Un outil de synchronisation bidirectionnelle entre Copper CRM et Mailchimp avec gestion des cas particuliers.
+Un outil de synchronisation robuste entre Copper CRM et Mailchimp avec gestion intelligente des suppressions et synchronisation des tags.
 
-## Fonctionnalités
+## 🚀 Fonctionnalités principales
 
-- Synchronisation bidirectionnelle des contacts entre Copper CRM et Mailchimp
-- Détection et gestion des emails supprimés définitivement dans Mailchimp
-- Génération automatique de liens de réinscription personnalisés
-- Ajout d'étiquettes "Réinscription requise" dans Copper
-- Génération de rapports détaillés de synchronisation
+### Synchronisation
+- **Synchronisation bidirectionnelle** des contacts entre Copper CRM et Mailchimp
+- **Synchronisation des tags** : tous les tags Copper sont synchronisés vers Mailchimp
+- **Synchronisation périodique** via cron job (polling)
+- **Cache intelligent** pour optimiser les performances
+- **Gestion des erreurs** avec retry automatique
 
-## Installation
+### Gestion des suppressions
+- **Détection automatique** des contacts marqués pour suppression (tag `🗑️ À SUPPRIMER`)
+- **Exclusion automatique** de la synchronisation pour les contacts marqués
+- **Interface utilisateur** pour archiver ou supprimer définitivement les contacts
+- **Gestion robuste** des variations du tag de suppression (casse, accents, variantes)
 
-1. Clonez ce dépôt
-2. Installez les dépendances :
+### Fonctionnalités avancées
+- **Logs détaillés** avec rotation automatique
+- **Rapports de synchronisation** complets
+- **Gestion des erreurs Mailchimp** (emails invalides, suppressions, etc.)
+- **Synchronisation optimisée** avec mise en cache
+
+## 📋 Prérequis
+
+- Python 3.7+
+- Accès API Copper CRM
+- Accès API Mailchimp
+- Permissions d'écriture sur les deux plateformes
+
+## 🔧 Installation
+
+1. **Clonez ce dépôt**
+```bash
+git clone [URL_DU_REPO]
+cd Synchro_Copper_Mailchimp
+```
+
+2. **Installez les dépendances**
+```bash
+pip install -r requirements.txt
+```
+Ou manuellement :
 ```bash
 pip install python-dotenv requests
 ```
-3. Créez un fichier `.env` dans le répertoire racine avec les variables suivantes :
-```
+
+3. **Configuration des API**
+
+Créez un fichier `.env` dans le répertoire racine :
+```env
 COPPER_API_KEY=votre_clé_api_copper
 COPPER_API_EMAIL=votre_email_copper
 MAILCHIMP_API_KEY=votre_clé_api_mailchimp
 MAILCHIMP_DC=votre_datacenter_mailchimp
 MAILCHIMP_LIST_ID=identifiant_de_votre_liste_mailchimp
+SYNC_INTERVAL=3600
 ```
 
-## Utilisation
+## 🚀 Utilisation
 
+### Synchronisation manuelle
 ```bash
 python sync.py
 ```
 
-## Documentation
+### Configuration de la synchronisation automatique
+```bash
+# Rendre les scripts exécutables
+chmod +x setup_cron.sh run_sync.sh
 
-- Pour les utilisateurs non techniques, consultez [GUIDE_RAPIDE.md](./GUIDE_RAPIDE.md)
-- Pour une documentation complète d'utilisation, consultez [DOCUMENTATION.md](./DOCUMENTATION.md)
+# Configurer le cron job
+./setup_cron.sh
+```
 
-## Architecture du projet
+### Gestion des contacts marqués pour suppression
 
-- `sync.py` : Script principal de synchronisation
-- `DOCUMENTATION.md` : Documentation détaillée pour utilisateurs
-- `GUIDE_RAPIDE.md` : Guide de référence rapide
-- `sync_log_*.txt` : Fichiers de logs générés automatiquement
-- `import_report_*.txt` : Rapports d'importation générés automatiquement
+Le système détecte automatiquement les contacts avec le tag `🗑️ À SUPPRIMER` et propose :
+- **Archiver** : déplacer vers les archives Copper
+- **Supprimer** : suppression définitive
+- **Ignorer** : conserver mais exclure de la synchronisation
 
-## Personnalisation
+## 📚 Documentation
 
-### Modifier la logique de synchronisation
+- **[GUIDE_RAPIDE.md](./GUIDE_RAPIDE.md)** : Guide de référence rapide
+- **[GUIDE_TAG_SUPPRESSION.md](./GUIDE_TAG_SUPPRESSION.md)** : Guide détaillé pour la gestion des suppressions
+- **[DOCUMENTATION.md](./DOCUMENTATION.md)** : Documentation technique complète
 
-Pour modifier les règles de synchronisation ou ajouter des champs personnalisés, modifiez les fonctions suivantes dans `sync.py` :
-- `sync_copper_to_mailchimp`
-- `sync_mailchimp_to_copper`
+## 🏗️ Architecture
 
-### Modifier le format des rapports
+```
+Synchro_Copper_Mailchimp/
+├── sync.py                     # Script principal
+├── run_sync.sh                 # Script d'exécution
+├── setup_cron.sh              # Configuration automatique
+├── stop_sync.sh               # Arrêt de la synchronisation
+├── .env                       # Configuration (à créer)
+└── docs/
+    ├── README.md
+    ├── GUIDE_RAPIDE.md
+    ├── GUIDE_TAG_SUPPRESSION.md
+    └── DOCUMENTATION.md
+```
 
-Pour changer le format des rapports générés, modifiez la fonction `generate_import_report` dans `sync.py`.
+## ⚙️ Configuration avancée
 
-## Limitations connues
+### Tags de suppression
 
-- Le programme est configuré pour synchroniser uniquement les contacts contenant "@exemple" dans leur email (mode test)
-- La synchronisation est limitée aux informations de base des contacts (nom, prénom, email)
-- Les limites d'API de Copper et Mailchimp peuvent affecter les performances pour les grandes bases de données
+Le système reconnaît automatiquement ces variantes :
+- `🗑️ À SUPPRIMER`
+- `🗑️ A SUPPRIMER`
+- `À SUPPRIMER`
+- `A SUPPRIMER`
+- Insensible à la casse et aux espaces
+
+### Synchronisation des tags
+
+Tous les tags Copper sont automatiquement synchronisés vers Mailchimp comme tags personnalisés.
+
+### Logs et monitoring
+
+- Logs rotatifs dans `sync_YYYYMMDD.log`
+- Rapports détaillés de chaque synchronisation
+- Gestion des erreurs avec retry automatique
+
+## 🔄 Workflow de synchronisation
+
+1. **Lecture des contacts** Copper et Mailchimp
+2. **Détection des contacts marqués** pour suppression
+3. **Exclusion automatique** des contacts marqués
+4. **Synchronisation bidirectionnelle** des contacts valides
+5. **Synchronisation des tags** Copper → Mailchimp
+6. **Interface utilisateur** pour traiter les suppressions
+7. **Génération des rapports**
+
+## ⚠️ Limitations
+
+- **Respect des limites API** Copper et Mailchimp
+- **Gestion des gros volumes** avec pagination automatique
+- **Tags Mailchimp** limités aux caractères alphanumériques
+
+## 🐛 Dépannage
+
+### Problèmes fréquents
+
+1. **Erreur d'authentification** : Vérifiez vos clés API dans `.env`
+2. **Contact non synchronisé** : Vérifiez s'il n'a pas le tag de suppression
+3. **Tag non créé** : Mailchimp convertit automatiquement les caractères spéciaux
+
+### Logs
+
+Consultez les fichiers de logs pour diagnostiquer :
+```bash
+tail -f sync_$(date +%Y%m%d).log
+```
 
 ## Licence
 

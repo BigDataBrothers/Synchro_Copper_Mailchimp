@@ -1,19 +1,34 @@
-# Guide Rapide : Synchronisation Copper ↔ Mailchimp
+# Guide Rapide : Synchronisation Copper ↔ Mailchimp (Mode Polling)
 
 ## ⚡️ En bref
 
-Ce programme synchronise vos contacts entre Copper et Mailchimp, et gère les cas où des emails ont été supprimés définitivement de Mailchimp.
+Ce programme synchronise vos contacts entre Copper et Mailchimp de manière périodique (polling). Il gère également les cas où des emails ont été supprimés définitivement de Mailchimp.
 
-## 🚀 Lancement du programme
+## 🚀 Configuration initiale
 
-1. Ouvrez un terminal
-2. Naviguez vers le dossier du programme : `cd chemin/vers/dossier`
-3. Exécutez la commande : `python sync.py`
-4. Attendez la fin de l'exécution
+1. **Configuration automatique** :
+   ```bash
+   chmod +x setup_cron.sh
+   ./setup_cron.sh
+   ```
+   Cette commande configure la synchronisation automatique toutes les heures.
+
+2. **Synchronisation manuelle** :
+   ```bash
+   python sync.py
+   ```
+
+## 🔄 Fonctionnement automatique
+
+Une fois configuré, le programme :
+- Se lance automatiquement toutes les heures (ou selon l'intervalle défini)
+- Synchronise tous les contacts entre Copper et Mailchimp
+- Génère des rapports à chaque exécution
+- Fonctionne en arrière-plan sans intervention
 
 ## 📊 Où trouver les résultats
 
-Après exécution, deux fichiers sont créés dans le dossier du programme :
+Après chaque exécution, deux fichiers sont créés dans le dossier du programme :
 
 - **Rapport d'importation** : `import_report_DATE_HEURE.txt`
 - **Log détaillé** : `sync_log_DATE_HEURE.txt`
