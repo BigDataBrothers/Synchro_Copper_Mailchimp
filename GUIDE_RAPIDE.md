@@ -1,8 +1,8 @@
-# Guide Rapide : Synchronisation Copper ↔ Mailchimp (Mode Polling)
+# Guide Rapide : Synchronisation Copper ↔ Mailchimp
 
 ## ⚡️ En bref
 
-Ce programme synchronise vos contacts entre Copper et Mailchimp de manière périodique (polling). Il gère également les cas où des emails ont été supprimés définitivement de Mailchimp.
+Ce programme synchronise vos contacts entre Copper et Mailchimp de manière périodique. Il gère également la suppression sécurisée et l'archivage intelligent des contacts avec un système de statut Actif/Inactif.
 
 ## 🚀 Configuration initiale
 
@@ -11,7 +11,7 @@ Ce programme synchronise vos contacts entre Copper et Mailchimp de manière pér
    chmod +x setup_cron.sh
    ./setup_cron.sh
    ```
-   Cette commande configure la synchronisation automatique toutes les heures.
+   Cette commande configure la synchronisation automatique selon la fréquence choisie.
 
 2. **Synchronisation manuelle** :
    ```bash
@@ -21,49 +21,67 @@ Ce programme synchronise vos contacts entre Copper et Mailchimp de manière pér
 ## 🔄 Fonctionnement automatique
 
 Une fois configuré, le programme :
-- Se lance automatiquement toutes les heures (ou selon l'intervalle défini)
-- Synchronise tous les contacts entre Copper et Mailchimp
+- Se lance automatiquement selon l'intervalle défini (15min, 1h, etc.)
+- Synchronise tous les contacts **actifs** entre Copper et Mailchimp
+- **Exclut automatiquement** les contacts marqués `🗑️ À SUPPRIMER` et `📥 INACTIF`
+- Synchronise tous les tags Copper vers Mailchimp
 - Génère des rapports à chaque exécution
-- Fonctionne en arrière-plan sans intervention
 
 ## 📊 Où trouver les résultats
 
-Après chaque exécution, deux fichiers sont créés dans le dossier du programme :
+Après chaque exécution, un fichier de log détaillé est créé dans le dossier du programme :
 
-- **Rapport d'importation** : `import_report_DATE_HEURE.txt`
-- **Log détaillé** : `sync_log_DATE_HEURE.txt`
+- **Log détaillé** : `sync_log_YYYY-MM-DD_HH-MM-SS.txt`
+
+Ce fichier contient :
+- Toutes les étapes de la synchronisation
+- Les résultats détaillés (contacts synchronisés, exclus, etc.)
+- Les erreurs éventuelles avec détails techniques
 
 ## 🔍 Comment lire les rapports
 
-### Succès (✅)
+### Succès de synchronisation (✅)
 ```
-✅ SUCCÈS | exemple@email.com
-Direction: Mailchimp → Copper
-Nom: Jean Dupont
+✅ Synchronisé avec tags: exemple@email.com (5 tags)
 ```
-➡️ Ce contact a été correctement synchronisé, aucune action requise.
+➡️ Contact synchronisé avec ses tags Copper vers Mailchimp.
 
-### Email supprimé (⚠️)
+### Contact exclu automatiquement (ℹ️)
 ```
-⚠️ EMAIL SUPPRIMÉ | exemple@email.com
-Direction: Copper → Mailchimp
-Nom: Marie Martin
-Lien de réinscription: https://...
+ℹ️ Contact exclu (inactif): marie@exemple.fr
 ```
-➡️ Action requise : Contacter cette personne par un autre moyen et lui demander de se réinscrire via le lien fourni.
+➡️ Contact avec tag `📥 INACTIF` - exclu automatiquement.
 
-### Erreur (❌)
+### Contact marqué pour suppression (⚠️)
 ```
-❌ ERREUR | exemple@email.com
-Direction: Copper → Mailchimp
-Nom: Paul Durand
-Raison: Invalid email format
+⚠️ Contact marqué pour suppression: jean@exemple.com (Tag: '🗑️ À SUPPRIMER')
+```
+➡️ Le système vous demandera quoi faire avec ce contact.
+
+### Erreur de synchronisation (❌)
+```
+❌ Erreur sync exemple@email.com: Invalid email format
 ```
 ➡️ Action requise : Vérifier et corriger l'adresse email dans Copper.
 
-## 🏷️ Étiquettes dans Copper
+## 🏷️ Système de tags dans Copper
 
-- **"Réinscription requise"** : Cette étiquette est automatiquement ajoutée aux contacts dont l'email a été supprimé définitivement dans Mailchimp.
+### Tags de gestion automatique :
+- **`🗑️ À SUPPRIMER`** : Contact à traiter (suppression ou archivage)
+- **`📥 INACTIF`** : Contact archivé (exclu de la synchronisation)
+
+### Workflow de suppression/archivage :
+1. **Marquer pour suppression** : Ajoutez le tag `🗑️ À SUPPRIMER` dans Copper
+2. **Lancer la synchronisation** : Le système détecte automatiquement ces contacts
+3. **Choisir l'action** :
+   - **Archiver** → Tag `📥 INACTIF` + désabonnement Mailchimp
+   - **Supprimer** → Suppression définitive Copper + Mailchimp
+
+### Avantages du système Actif/Inactif :
+- ✅ **Conservation des données** dans Copper (historique, notes, etc.)
+- ✅ **Exclusion automatique** de la synchronisation  
+- ✅ **Réactivation possible** (supprimez le tag `📥 INACTIF`)
+- ✅ **Filtrage facile** dans Copper par tags
 
 ## 📱 Besoin d'aide?
 

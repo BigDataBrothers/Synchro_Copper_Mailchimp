@@ -22,8 +22,8 @@ if ! command -v python3 &> /dev/null; then
 fi
 
 # Lancement du programme
-echo "🔄 Démarrage de la synchronisation..."
-echo "   (Cette opération peut prendre plusieurs minutes)"
+echo "🔄 Démarrage de la synchronisation optimisée..."
+echo "   (Cette opération est maintenant très rapide grâce aux optimisations)"
 echo
 
 python3 sync.py
@@ -33,17 +33,17 @@ if [ $? -eq 0 ]; then
   echo
   echo "✅ Synchronisation terminée avec succès!"
   
-  # Recherche du dernier rapport généré
-  LATEST_REPORT=$(ls -t import_report_*.txt | head -1)
-  if [ -n "$LATEST_REPORT" ]; then
-    echo "   Rapport disponible: $LATEST_REPORT"
+  # Recherche du dernier log généré
+  LATEST_LOG=$(ls -t sync_log_*.txt 2>/dev/null | head -1)
+  if [ -n "$LATEST_LOG" ]; then
+    echo "   Log détaillé disponible: $LATEST_LOG"
     echo
-    echo "   Pour consulter le rapport, exécutez:"
-    echo "   cat $LATEST_REPORT"
+    echo "   Pour consulter le log complet, exécutez:"
+    echo "   cat $LATEST_LOG"
   fi
   
   echo
-  echo "📚 Pour plus d'informations sur la lecture des rapports,"
+  echo "📚 Pour plus d'informations sur la lecture des logs,"
   echo "   consultez le fichier GUIDE_RAPIDE.md"
 else
   echo

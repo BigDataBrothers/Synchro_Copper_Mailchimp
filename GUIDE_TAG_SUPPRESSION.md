@@ -49,9 +49,34 @@ Le script va :
    - `i` = ignorer pour cette session
 
 ### 4. Actions possibles pour chaque contact
-- `a` = **Archiver** (désabonnement Mailchimp uniquement)
-- `s` = **Supprimer** (suppression Copper + Mailchimp)
+- `a` = **Archiver** (marquer "📥 INACTIF" dans Copper + désabonnement Mailchimp)
+- `s` = **Supprimer** (suppression définitive Copper + Mailchimp)
 - `i` = **Ignorer** (garder le tag, aucune action)
+
+## 📥 GESTION DES CONTACTS INACTIFS
+
+### Statut Actif/Inactif dans Copper
+Comme Copper n'a pas de système d'archivage intégré, le script utilise un tag spécial pour marquer les contacts inactifs :
+
+**Tag d'inactivité :** `📥 INACTIF`
+
+### Workflow d'archivage
+Quand vous choisissez "Archiver" un contact :
+
+1. **Dans Copper :**
+   - Supprime le tag `🗑️ À SUPPRIMER`
+   - Ajoute le tag `📥 INACTIF`
+   - Le contact reste dans Copper mais n'est plus synchronisé
+
+2. **Dans Mailchimp :**
+   - Change le statut vers "Unsubscribed"
+   - Le contact n'apparaît plus dans vos campagnes
+
+### Avantages du système Actif/Inactif
+- ✅ **Conservation des données** : Le contact reste dans Copper avec son historique
+- ✅ **Exclusion automatique** : Plus jamais synchronisé vers Mailchimp
+- ✅ **Réactivation possible** : Supprimez le tag `📥 INACTIF` pour réactiver
+- ✅ **Traçabilité** : Filtrez par tag dans Copper pour voir tous les inactifs
 
 ## 📊 EXEMPLE D'EXÉCUTION
 
@@ -67,6 +92,11 @@ Le script va :
    1. jean.dupont@exemple.com - Jean Dupont (Tag: '🗑️ À SUPPRIMER')
    2. marie@exemple.fr - Marie Martin (Tag: '🗑️ A SUPPRIMER')
    3. pierre@exemple.org - Pierre Durand (Tag: '🗑 À SUPPRIMER')
+
+📊 Résultats:
+   Contacts synchronisés: 13231
+   Contacts exclus: 150  (dont 3 marqués pour suppression, 147 inactifs)
+   Contacts marqués pour suppression: 3
 
 🤔 Que voulez-vous faire ? (t=traiter un par un, g=traiter en groupe, i=ignorer): 
 ```

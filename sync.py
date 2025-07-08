@@ -74,6 +74,24 @@ def is_delete_tag_robust(tag):
     
     return any(conditions)
 
+def is_inactive_tag(tag):
+    """Détection du tag inactif"""
+    if not tag or not isinstance(tag, str):
+        return False
+    
+    normalized = str(tag).strip().upper()
+    normalized = normalized.replace('À', 'A').replace('Á', 'A').replace('Â', 'A')
+    normalized = normalized.replace('È', 'E').replace('É', 'É').replace('Ê', 'E')
+    
+    conditions = [
+        "INACTIF" in normalized,
+        "📥" in normalized,
+        "INACTIVE" in normalized,
+        "ARCHIVED" in normalized
+    ]
+    
+    return any(conditions)
+
 def normalize_email(email):
     """Normalise un email"""
     return email.lower().strip()
@@ -103,9 +121,9 @@ def safe_request(func, *args, **kwargs):
             log(f"Tentative {attempt + 1} échouée: {e}. Retry dans {retry_delay}s", "WARNING")
             time.sleep(retry_delay)
 
-def get_all_copper_contacts():
-    """Récupère tous les contacts Copper"""
-    log("🔄 Récupération de TOUS les contacts Copper...", "INFO")
+def get_target_copper_contacts():
+    """Récupère seulement les contacts Copper avec emails @exemple (optimisé)"""
+    log("🔄 Récupération des contacts Copper cibles (@exemple)...", "INFO")
     contacts = []
     page = 1
     
@@ -118,30 +136,34 @@ def get_all_copper_contacts():
         
         if not data:
             break
-            
-        contacts.extend(data)
-        log(f"   Page {page}: +{len(data)} contacts (Total: {len(contacts)})", "INFO")
+        
+        # Filtrer immédiatement les contacts avec @exemple
+        target_contacts = []
+        for contact in data:
+            emails = contact.get("emails", [])
+            if emails and is_target_email(emails[0]["email"]):
+                target_contacts.append(contact)
+        
+        contacts.extend(target_contacts)
+        log(f"   Page {page}: +{len(target_contacts)} contacts cibles (Total: {len(contacts)})", "INFO")
         
         if len(data) < 200:
             break
             
         page += 1
     
-    log(f"✅ {len(contacts)} contacts Copper récupérés", "SUCCESS")
+    log(f"✅ {len(contacts)} contacts Copper cibles récupérés", "SUCCESS")
     return contacts
 
 def sync_contact_to_mailchimp(contact, tags_to_sync=None):
-    """Synchronise un contact vers Mailchimp avec ses tags"""
+    """Synchronise un contact vers Mailchimp avec ses tags (optimisé)"""
     emails = contact.get("emails", [])
     if not emails:
         return False
     
     email = emails[0]["email"]
     
-    # Ne synchroniser que les emails de test
-    if not is_target_email(email):
-        return False
-    
+    # Emails déjà filtrés en amont, pas besoin de re-vérifier
     first_name = contact.get("first_name", "")
     last_name = contact.get("last_name", "")
     
@@ -222,16 +244,39 @@ def handle_marked_contacts(marked_contacts):
                 delete_contact(contact)
 
 def archive_contact(contact):
-    """Archive un contact (désabonnement Mailchimp)"""
+    """Archive un contact (statut Inactif dans Copper + désabonnement Mailchimp)"""
     try:
         email = contact["email"]
-        subscriber_hash = get_subscriber_hash(email)
-        url = f"{MC_BASE}/lists/{MC_LIST_ID}/members/{subscriber_hash}"
+        copper_id = contact["copper_id"]
         
-        response = safe_request(requests.patch, url, auth=MC_AUTH, 
+        # 1. Marquer comme inactif dans Copper (ajout d'un tag)
+        copper_url = f"{COPPER_API_URL}/people/{copper_id}"
+        
+        # Récupérer le contact actuel pour conserver ses tags existants
+        response = safe_request(requests.get, copper_url, headers=COPPER_HEADERS)
+        current_contact = response.json()
+        
+        # Ajouter le tag "📥 INACTIF" aux tags existants
+        existing_tags = current_contact.get("tags", [])
+        if "📥 INACTIF" not in existing_tags:
+            existing_tags.append("📥 INACTIF")
+        
+        # Supprimer le tag de suppression et ajouter le tag inactif
+        existing_tags = [tag for tag in existing_tags if not is_delete_tag_robust(str(tag))]
+        existing_tags.append("📥 INACTIF")
+        
+        # Mettre à jour le contact dans Copper
+        update_payload = {"tags": existing_tags}
+        response = safe_request(requests.put, copper_url, headers=COPPER_HEADERS, json=update_payload)
+        
+        # 2. Désabonner de Mailchimp
+        subscriber_hash = get_subscriber_hash(email)
+        mc_url = f"{MC_BASE}/lists/{MC_LIST_ID}/members/{subscriber_hash}"
+        
+        response = safe_request(requests.patch, mc_url, auth=MC_AUTH, 
                               json={"status": "unsubscribed"})
         
-        log(f"✅ Contact {email} archivé (désabonné)", "SUCCESS")
+        log(f"✅ Contact {email} archivé (Inactif dans Copper + désabonné Mailchimp)", "SUCCESS")
     except Exception as e:
         log(f"❌ Erreur archivage {contact['email']}: {e}", "ERROR")
 
@@ -253,35 +298,142 @@ def delete_contact(contact):
     except Exception as e:
         log(f"❌ Erreur suppression {contact['email']}: {e}", "ERROR")
 
+def get_target_mailchimp_contacts():
+    """Récupère seulement les contacts Mailchimp avec emails @exemple (optimisé)"""
+    log("🔄 Récupération des contacts Mailchimp cibles (@exemple)...", "INFO")
+    members = []
+    offset = 0
+    count = 1000
+    
+    while True:
+        url = f"{MC_BASE}/lists/{MC_LIST_ID}/members"
+        params = {
+            "offset": offset,
+            "count": count,
+            "status": "subscribed"
+        }
+        
+        response = safe_request(requests.get, url, auth=MC_AUTH, params=params)
+        data = response.json()
+        
+        batch = data.get("members", [])
+        if not batch:
+            break
+        
+        # Filtrer immédiatement les contacts avec @exemple
+        target_members = []
+        for member in batch:
+            email = member.get("email_address", "")
+            if is_target_email(email):
+                target_members.append(member)
+        
+        members.extend(target_members)
+        log(f"   Offset {offset}: +{len(target_members)} membres cibles (Total: {len(members)})", "INFO")
+        
+        if len(batch) < count:
+            break
+            
+        offset += count
+    
+    log(f"✅ {len(members)} membres Mailchimp cibles récupérés", "SUCCESS")
+    return members
+
+def sync_mailchimp_to_copper(mc_members, copper_contacts_by_email):
+    """Synchronise Mailchimp vers Copper (optimisé)"""
+    synced_count = 0
+    
+    for member in mc_members:
+        email = normalize_email(member.get("email_address", ""))
+        
+        # Vérifier si le contact existe déjà dans Copper
+        if email in copper_contacts_by_email:
+            continue  # Contact déjà présent
+            
+        # Créer le contact dans Copper
+        first_name = member.get("merge_fields", {}).get("FNAME", "")
+        last_name = member.get("merge_fields", {}).get("LNAME", "")
+        
+        if not first_name and not last_name:
+            continue  # Skip si pas de nom
+            
+        contact_data = {
+            "name": f"{first_name} {last_name}".strip(),
+            "emails": [{"email": email, "category": "work"}],
+            "first_name": first_name,
+            "last_name": last_name
+        }
+        
+        try:
+            url = f"{COPPER_API_URL}/people"
+            response = safe_request(requests.post, url, headers=COPPER_HEADERS, json=contact_data)
+            
+            log(f"✅ Nouveau contact créé dans Copper: {email}", "SUCCESS")
+            synced_count += 1
+            
+        except Exception as e:
+            log(f"❌ Erreur création {email} dans Copper: {e}", "ERROR")
+    
+    return synced_count
+
 def main():
     """Fonction principale avec synchronisation des tags"""
     start_time = time.time()
     
-    log("🚀 SYNCHRONISATION COPPER-MAILCHIMP AVEC TAGS", "INFO")
+    log("🚀 SYNCHRONISATION BIDIRECTIONNELLE COPPER ↔ MAILCHIMP", "INFO")
     log("=" * 60, "INFO")
     
     try:
-        # 1. Récupération des contacts
-        copper_contacts = get_all_copper_contacts()
+        # 1. Récupération optimisée des contacts cibles uniquement
+        log("🎯 RÉCUPÉRATION OPTIMISÉE (emails @exemple uniquement)", "INFO")
+        copper_contacts = get_target_copper_contacts()
+        mailchimp_members = get_target_mailchimp_contacts()
         
-        # 2. Analyse et traitement
+        # 2. Construction des index optimisés
+        log("🔧 Construction des index email...", "INFO")
+        copper_by_email = {}
+        mc_by_email = {}
+        
+        for contact in copper_contacts:
+            emails = contact.get("emails", [])
+            if emails:
+                email = normalize_email(emails[0]["email"])
+                copper_by_email[email] = contact
+        
+        for member in mailchimp_members:
+            email = normalize_email(member.get("email_address", ""))
+            mc_by_email[email] = member
+        
+        log(f"✅ Index créés: {len(copper_by_email)} contacts Copper cibles, {len(mc_by_email)} membres Mailchimp cibles", "SUCCESS")
+        
+        # Vérification s'il y a des contacts à traiter
+        if len(copper_by_email) == 0 and len(mc_by_email) == 0:
+            log(f"ℹ️ Aucun contact cible trouvé (@exemple) - rien à synchroniser", "INFO")
+            execution_time = time.time() - start_time
+            log(f"✅ SYNCHRONISATION TERMINÉE en {execution_time:.2f}s (aucun contact à traiter)", "SUCCESS")
+            return
+        
+        # 3. Analyse et traitement des contacts Copper
         marked_contacts = []
-        synced_contacts = 0
+        copper_to_mc_synced = 0
         excluded_contacts = 0
         
-        log("🔄 Analyse et synchronisation des contacts...", "INFO")
+        log("🔄 Analyse et synchronisation Copper → Mailchimp...", "INFO")
         
         for contact in copper_contacts:
             tags = contact.get("tags", [])
             
             # Vérifier si marqué pour suppression
             is_marked = False
+            is_inactive = False
             detected_tag = None
             
             for tag_name in tags:
                 if is_delete_tag_robust(str(tag_name)):
                     is_marked = True
                     detected_tag = tag_name
+                    break
+                elif is_inactive_tag(str(tag_name)):
+                    is_inactive = True
                     break
             
             if is_marked:
@@ -295,22 +447,37 @@ def main():
                         "detected_tag": detected_tag
                     })
                 excluded_contacts += 1
+            elif is_inactive:
+                # Contact inactif - exclure de la synchronisation
+                excluded_contacts += 1
             else:
                 # Contact normal - synchroniser avec tags
                 if sync_contact_to_mailchimp(contact, tags):
-                    synced_contacts += 1
+                    copper_to_mc_synced += 1
         
-        # 3. Résultats
-        log(f"📊 Résultats:", "INFO")
-        log(f"   Contacts synchronisés: {synced_contacts}", "INFO")
-        log(f"   Contacts exclus: {excluded_contacts}", "INFO")
+        # 4. Synchronisation Mailchimp → Copper (optimisée)
+        log("🔄 Synchronisation Mailchimp → Copper...", "INFO")
+        mc_to_copper_synced = sync_mailchimp_to_copper(mailchimp_members, copper_by_email)
+        
+        # 5. Résultats détaillés
+        total_synced = copper_to_mc_synced + mc_to_copper_synced
+        log(f"📊 Résultats de la synchronisation bidirectionnelle:", "INFO")
+        log(f"   Contacts Copper → Mailchimp: {copper_to_mc_synced}", "INFO")
+        log(f"   Contacts Mailchimp → Copper: {mc_to_copper_synced}", "INFO")
+        log(f"   Total synchronisé: {total_synced}", "INFO")
+        log(f"   Contacts exclus (inactifs): {excluded_contacts}", "INFO")
         log(f"   Contacts marqués pour suppression: {len(marked_contacts)}", "INFO")
         
-        # 4. Gestion des contacts marqués
+        if total_synced > 0:
+            log(f"✅ Synchronisation réussie : {total_synced} contact(s) traité(s)", "SUCCESS")
+        else:
+            log(f"ℹ️ Aucune synchronisation nécessaire - tous les contacts sont à jour", "INFO")
+        
+        # 6. Gestion des contacts marqués
         handle_marked_contacts(marked_contacts)
         
         execution_time = time.time() - start_time
-        log(f"✅ SYNCHRONISATION TERMINÉE en {execution_time:.2f}s", "SUCCESS")
+        log(f"✅ SYNCHRONISATION BIDIRECTIONNELLE TERMINÉE en {execution_time:.2f}s", "SUCCESS")
         
     except Exception as e:
         log(f"❌ ERREUR CRITIQUE: {e}", "ERROR")
