@@ -46,3 +46,25 @@ Thumbs.db
 # Cache
 cache/
 *.cache
+
+# Fichiers de présentation et documentation interne
+PRESENTATION_EQUIPE.md
+PRESENTATION_*.md
+
+# Fichiers de logs et rapports générés
+*.log
+sync_log_*.txt
+import_report_*.txt
+rapport_*.txt
+*_log_*.txt
+*_report_*.txt
+
+# Scripts cron générés
+run_sync_cron.sh
+sync_cron.log
+
+# Fichiers temporaires de développement
+test_*.py
+debug_*.py
+*_backup.*
+
