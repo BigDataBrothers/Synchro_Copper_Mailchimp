@@ -2,26 +2,46 @@
 
 Un outil de synchronisation robuste entre Copper CRM et Mailchimp avec gestion intelligente des suppressions et synchronisation des tags.
 
+## ⚠️ MODES DE FONCTIONNEMENT
+
+### 🧪 Mode TEST (par défaut - SÉCURISÉ)
+- **Traite UNIQUEMENT les emails contenant "@exemple"**
+- Parfait pour les tests et le développement
+- Variable : `TEST_MODE = True` dans `sync.py`
+- Aucun risque pour vos données de production
+
+### 🔥 Mode PRODUCTION (sur demande)
+- **Traite TOUTE votre base de données Copper et Mailchimp**
+- Variable : `TEST_MODE = False` dans `sync.py`
+- ⚠️ **ATTENTION** : Impact sur tous vos contacts réels !
+
+### 🔄 Basculement rapide entre modes
+```bash
+python toggle_mode.py  # Script interactif pour changer de mode
+```
+
 ## 🚀 Fonctionnalités principales
 
 ### Synchronisation
 - **Synchronisation bidirectionnelle** des contacts entre Copper CRM et Mailchimp
+- **Mode TEST par défaut** : traite uniquement les emails "@exemple" (sécurisé)
+- **Mode PRODUCTION** : traite toute la base de données (via `TEST_MODE = False`)
 - **Synchronisation des tags** : tous les tags Copper sont synchronisés vers Mailchimp
 - **Synchronisation périodique** via cron job (polling)
-- **Cache intelligent** pour optimiser les performances
+- **Optimisation intelligente** : ignore les contacts identiques (pas de re-synchronisation inutile)
 - **Gestion des erreurs** avec retry automatique
 
 ### Gestion des suppressions
 - **Détection automatique** des contacts marqués pour suppression (tag `🗑️ À SUPPRIMER`)
 - **Exclusion automatique** de la synchronisation pour les contacts marqués
-- **Interface utilisateur** pour archiver ou supprimer définitivement les contacts
+- **Interface en ligne de commande** pour archiver ou supprimer définitivement les contacts
 - **Gestion robuste** des variations du tag de suppression (casse, accents, variantes)
 
 ### Fonctionnalités avancées
-- **Logs détaillés** avec rotation automatique
-- **Rapports de synchronisation** complets
+- **Logs détaillés** avec horodatage
+- **Rapports d'importation** automatiques (`import_report_*.txt`)
 - **Gestion des erreurs Mailchimp** (emails invalides, suppressions, etc.)
-- **Synchronisation optimisée** avec mise en cache
+- **Comparaison intelligente** : évite les synchronisations inutiles
 
 ## 📋 Prérequis
 

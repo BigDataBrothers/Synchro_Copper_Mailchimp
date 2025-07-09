@@ -14,9 +14,22 @@ import time
 
 load_dotenv()
 
+# ==================== CONFIGURATION MODE TEST/PROD ====================
+# IMPORTANT: Changer cette variable pour passer en mode production
+TEST_MODE = True  # True = emails @exemple uniquement, False = toute la BD
+TEST_DOMAIN = "@exemple"  # Domaine de test
+# ====================================================================
+
 # Configuration du logging
 log_filename = f"sync_log_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.txt"
 log_file = open(log_filename, "w", encoding='utf-8')
+
+# Configuration du rapport d'importation
+report_filename = f"import_report_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.txt"
+report_file = open(report_filename, "w", encoding='utf-8')
+
+# Liste globale pour collecter les détails des opérations
+operation_details = []
 
 class Colors:
     GREEN = '\033[92m'
@@ -36,6 +49,45 @@ def log(message, level="INFO"):
     print(console_message)
     log_file.write(file_message + "\n")
     log_file.flush()
+
+def add_operation_detail(email, name, direction, success=True, error=None, tags=None):
+    """Ajouter les détails d'une opération au rapport"""
+    global operation_details
+    operation_details.append({
+        'email': email,
+        'name': name,
+        'direction': direction,
+        'success': success,
+        'error': error,
+        'tags': tags or []
+    })
+
+def normalize_contact_data(contact_data):
+    """Normalise les données d'un contact pour comparaison"""
+    return {
+        'first_name': (contact_data.get('first_name') or '').strip(),
+        'last_name': (contact_data.get('last_name') or '').strip(),
+        'email': normalize_email(contact_data.get('email', ''))
+    }
+
+def contacts_are_identical(copper_contact, mailchimp_member):
+    """Vérifie si un contact Copper et un membre Mailchimp sont identiques"""
+    # Normaliser les données Copper
+    copper_data = {
+        'first_name': (copper_contact.get('first_name') or '').strip(),
+        'last_name': (copper_contact.get('last_name') or '').strip(),
+        'email': normalize_email(copper_contact.get('emails', [{}])[0].get('email', ''))
+    }
+    
+    # Normaliser les données Mailchimp
+    mailchimp_data = {
+        'first_name': (mailchimp_member.get('merge_fields', {}).get('FNAME') or '').strip(),
+        'last_name': (mailchimp_member.get('merge_fields', {}).get('LNAME') or '').strip(),
+        'email': normalize_email(mailchimp_member.get('email_address', ''))
+    }
+    
+    # Comparer les données
+    return copper_data == mailchimp_data
 
 # Configuration APIs
 COPPER_API_URL = os.getenv("COPPER_API_URL", "https://api.copper.com/developer_api/v1")
@@ -155,17 +207,21 @@ def get_target_copper_contacts():
     log(f"✅ {len(contacts)} contacts Copper cibles récupérés", "SUCCESS")
     return contacts
 
-def sync_contact_to_mailchimp(contact, tags_to_sync=None):
-    """Synchronise un contact vers Mailchimp avec ses tags (optimisé)"""
+def sync_contact_to_mailchimp(contact, tags_to_sync=None, existing_member=None):
+    """Synchronise un contact vers Mailchimp avec ses tags (optimisé avec vérification)"""
     emails = contact.get("emails", [])
     if not emails:
         return False
     
     email = emails[0]["email"]
-    
-    # Emails déjà filtrés en amont, pas besoin de re-vérifier
     first_name = contact.get("first_name", "")
     last_name = contact.get("last_name", "")
+    
+    # Vérifier si les données sont identiques (pas besoin de synchroniser)
+    if existing_member:
+        if contacts_are_identical(contact, existing_member):
+            log(f"⏭️ Contact identique ignoré: {email}", "INFO")
+            return False  # Pas de synchronisation nécessaire
     
     # Préparer les tags pour Mailchimp
     mailchimp_tags = []
@@ -202,10 +258,12 @@ def sync_contact_to_mailchimp(contact, tags_to_sync=None):
         else:
             log(f"✅ Synchronisé: {email}", "SUCCESS")
         
+        add_operation_detail(email, f"{first_name} {last_name}", "Copper → Mailchimp", success=True, tags=tags_to_sync)
         return True
         
     except Exception as e:
         log(f"❌ Erreur sync {email}: {e}", "ERROR")
+        add_operation_detail(email, f"{first_name} {last_name}", "Copper → Mailchimp", success=False, error=str(e))
         return False
 
 def handle_marked_contacts(marked_contacts):
@@ -368,12 +426,116 @@ def sync_mailchimp_to_copper(mc_members, copper_contacts_by_email):
             response = safe_request(requests.post, url, headers=COPPER_HEADERS, json=contact_data)
             
             log(f"✅ Nouveau contact créé dans Copper: {email}", "SUCCESS")
+            add_operation_detail(email, f"{first_name} {last_name}", "Mailchimp → Copper", success=True)
             synced_count += 1
             
         except Exception as e:
             log(f"❌ Erreur création {email} dans Copper: {e}", "ERROR")
+            add_operation_detail(email, f"{first_name} {last_name}", "Mailchimp → Copper", success=False, error=str(e))
     
     return synced_count
+
+def write_import_report(report_data):
+    """Génère le rapport d'importation selon la documentation"""
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Calculer les statistiques
+    total_operations = len(report_data['operations'])
+    success_count = sum(1 for op in report_data['operations'] if op['success'])
+    error_count = total_operations - success_count
+    success_rate = (success_count / total_operations * 100) if total_operations > 0 else 0
+    
+    # En-tête du rapport
+    report_content = f"""================================================================================
+RAPPORT D'IMPORTATION COPPER ↔ MAILCHIMP
+================================================================================
+Date: {timestamp}
+Mode: {"TEST (@exemple uniquement)" if TEST_MODE else "PRODUCTION (toute la base)"}
+Total d'opérations: {total_operations}
+
+✅ Succès: {success_count}
+❌ Erreurs: {error_count}
+📊 Taux de réussite: {success_rate:.1f}%
+
+STATISTIQUES DÉTAILLÉES:
+--------------------------------------------------
+• Contacts Copper → Mailchimp: {report_data['copper_to_mc']}
+• Contacts Mailchimp → Copper: {report_data['mc_to_copper']}
+• Contacts identiques ignorés: {report_data.get('identical_contacts', 0)}
+• Contacts exclus (inactifs): {report_data['excluded']}
+• Contacts marqués pour suppression: {report_data['marked_for_deletion']}
+
+DÉTAILS DES OPÉRATIONS:
+--------------------------------------------------
+"""
+
+    # Détails des opérations
+    if report_data['operations']:
+        for i, operation in enumerate(report_data['operations'], 1):
+            status_icon = "✅ SUCCÈS" if operation['success'] else "❌ ERREUR"
+            
+            report_content += f"  {i}. {status_icon} | {operation['email']}\n"
+            report_content += f"     Direction: {operation['direction']}\n"
+            report_content += f"     Nom: {operation['name']}\n"
+            
+            if operation.get('tags'):
+                report_content += f"     Tags synchronisés: {', '.join(operation['tags'])}\n"
+            
+            if not operation['success'] and operation.get('error'):
+                report_content += f"     Erreur: {operation['error']}\n"
+            
+            report_content += "\n"
+    else:
+        report_content += "  Aucune opération de synchronisation effectuée.\n\n"
+    
+    # Contacts marqués mais non traités
+    if report_data['marked_for_deletion'] > 0:
+        report_content += """CONTACTS MARQUÉS POUR SUPPRESSION:
+--------------------------------------------------
+Les contacts suivants ont été détectés avec des tags de suppression
+mais n'ont pas été traités automatiquement. Utilisez l'interface
+pour les archiver ou supprimer selon vos besoins.
+
+"""
+        for marked_contact in report_data.get('marked_contacts', []):
+            report_content += f"• {marked_contact['email']} - {marked_contact['name']}\n"
+            if marked_contact.get('detected_tag'):
+                report_content += f"  Tag détecté: {marked_contact['detected_tag']}\n"
+            report_content += "\n"
+    
+    # Conseils et actions recommandées
+    report_content += """ACTIONS RECOMMANDÉES:
+--------------------------------------------------
+"""
+    
+    if error_count > 0:
+        report_content += f"• ⚠️ {error_count} erreur(s) détectée(s) - consultez les logs détaillés\n"
+    
+    if report_data['marked_for_deletion'] > 0:
+        report_content += f"• 🗑️ {report_data['marked_for_deletion']} contact(s) marqué(s) pour suppression - action requise\n"
+    
+    if success_count > 0:
+        report_content += f"• ✅ {success_count} contact(s) synchronisé(s) avec succès\n"
+    
+    if total_operations == 0:
+        report_content += "• ℹ️ Aucune synchronisation nécessaire - tous les contacts sont à jour\n"
+    
+    report_content += f"""
+FICHIERS GÉNÉRÉS:
+--------------------------------------------------
+• Log détaillé: {log_filename}
+• Rapport d'importation: {report_filename}
+
+Pour plus d'informations, consultez DOCUMENTATION.md
+================================================================================
+"""
+    
+    # Écrire le rapport dans le fichier
+    report_file.write(report_content)
+    report_file.flush()
+    report_file.close()
+    
+    return report_content
 
 def main():
     """Fonction principale avec synchronisation des tags"""
@@ -382,9 +544,24 @@ def main():
     log("🚀 SYNCHRONISATION BIDIRECTIONNELLE COPPER ↔ MAILCHIMP", "INFO")
     log("=" * 60, "INFO")
     
+    # Afficher le mode de fonctionnement
+    if TEST_MODE:
+        log(f"🧪 MODE TEST ACTIVÉ - Traitement des emails {TEST_DOMAIN} uniquement", "WARNING")
+        log(f"   Pour passer en mode production, définir TEST_MODE = False", "INFO")
+    else:
+        log("🔥 MODE PRODUCTION ACTIVÉ - Traitement de TOUTE la base de données", "WARNING")
+        log("   Assurez-vous que c'est bien voulu !", "WARNING")
+    
+    log("=" * 60, "INFO")
+    
     try:
-        # 1. Récupération optimisée des contacts cibles uniquement
-        log("🎯 RÉCUPÉRATION OPTIMISÉE (emails @exemple uniquement)", "INFO")
+        # 1. Récupération selon le mode configuré
+        mode_text = f"RÉCUPÉRATION OPTIMISÉE ({TEST_DOMAIN} uniquement)" if TEST_MODE else "RÉCUPÉRATION COMPLÈTE (toute la base)"
+        log(f"🎯 {mode_text}", "INFO")
+        
+        if TEST_MODE:
+            log(f"   ⚠️ Mode test : parcours de TOUTE la BD pour trouver les emails {TEST_DOMAIN}", "WARNING")
+            log(f"   💡 Ceci peut prendre plusieurs minutes selon la taille de la BD", "INFO")
         copper_contacts = get_target_copper_contacts()
         mailchimp_members = get_target_mailchimp_contacts()
         
@@ -407,7 +584,8 @@ def main():
         
         # Vérification s'il y a des contacts à traiter
         if len(copper_by_email) == 0 and len(mc_by_email) == 0:
-            log(f"ℹ️ Aucun contact cible trouvé (@exemple) - rien à synchroniser", "INFO")
+            mode_msg = f"({TEST_DOMAIN} uniquement)" if TEST_MODE else "(toute la base)"
+            log(f"ℹ️ Aucun contact cible trouvé {mode_msg} - rien à synchroniser", "INFO")
             execution_time = time.time() - start_time
             log(f"✅ SYNCHRONISATION TERMINÉE en {execution_time:.2f}s (aucun contact à traiter)", "SUCCESS")
             return
@@ -416,6 +594,7 @@ def main():
         marked_contacts = []
         copper_to_mc_synced = 0
         excluded_contacts = 0
+        identical_contacts = 0
         
         log("🔄 Analyse et synchronisation Copper → Mailchimp...", "INFO")
         
@@ -451,9 +630,17 @@ def main():
                 # Contact inactif - exclure de la synchronisation
                 excluded_contacts += 1
             else:
-                # Contact normal - synchroniser avec tags
-                if sync_contact_to_mailchimp(contact, tags):
-                    copper_to_mc_synced += 1
+                # Contact normal - vérifier s'il faut synchroniser
+                emails = contact.get("emails", [])
+                if emails:
+                    email = normalize_email(emails[0]["email"])
+                    existing_member = mc_by_email.get(email)
+                    
+                    sync_result = sync_contact_to_mailchimp(contact, tags, existing_member)
+                    if sync_result:
+                        copper_to_mc_synced += 1
+                    elif existing_member and contacts_are_identical(contact, existing_member):
+                        identical_contacts += 1
         
         # 4. Synchronisation Mailchimp → Copper (optimisée)
         log("🔄 Synchronisation Mailchimp → Copper...", "INFO")
@@ -465,6 +652,7 @@ def main():
         log(f"   Contacts Copper → Mailchimp: {copper_to_mc_synced}", "INFO")
         log(f"   Contacts Mailchimp → Copper: {mc_to_copper_synced}", "INFO")
         log(f"   Total synchronisé: {total_synced}", "INFO")
+        log(f"   Contacts identiques ignorés: {identical_contacts}", "INFO")
         log(f"   Contacts exclus (inactifs): {excluded_contacts}", "INFO")
         log(f"   Contacts marqués pour suppression: {len(marked_contacts)}", "INFO")
         
@@ -475,6 +663,20 @@ def main():
         
         # 6. Gestion des contacts marqués
         handle_marked_contacts(marked_contacts)
+        
+        # Génération du rapport d'importation
+        report_data = {
+            'operations': operation_details,
+            'copper_to_mc': copper_to_mc_synced,
+            'mc_to_copper': mc_to_copper_synced,
+            'identical_contacts': identical_contacts,
+            'excluded': excluded_contacts,
+            'marked_for_deletion': len(marked_contacts),
+            'marked_contacts': marked_contacts
+        }
+        
+        report_content = write_import_report(report_data)
+        log("📄 Rapport d'importation généré", "INFO")
         
         execution_time = time.time() - start_time
         log(f"✅ SYNCHRONISATION BIDIRECTIONNELLE TERMINÉE en {execution_time:.2f}s", "SUCCESS")

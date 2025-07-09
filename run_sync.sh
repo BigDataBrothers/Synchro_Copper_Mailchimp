@@ -23,7 +23,7 @@ fi
 
 # Lancement du programme
 echo "🔄 Démarrage de la synchronisation optimisée..."
-echo "   (Cette opération est maintenant très rapide grâce aux optimisations)"
+echo "   (Cette opération peut prendre quelques minutes selon la taille de vos données)"
 echo
 
 python3 sync.py

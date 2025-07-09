@@ -9,7 +9,7 @@
 
 **Synchronisation manuelle :**
 ```bash
-./run_sync.sh    # Interface utilisateur claire
+./run_sync.sh    # Interface en ligne de commande claire
 ```
 
 **Mode expert :**
@@ -118,7 +118,7 @@ Le projet contient plusieurs scripts avec des rôles différents :
 - **Commande** : `./setup_cron.sh`
 
 #### `run_sync.sh` - Synchronisation manuelle (🚀 Quand vous voulez)
-- **Rôle** : Lance une synchronisation manuelle avec interface utilisateur
+- **Rôle** : Lance une synchronisation manuelle avec interface en ligne de commande
 - **Utilisation** : À chaque fois que vous voulez une synchronisation immédiate
 - **Actions** :
   - Affiche une interface claire avec titres et emojis
@@ -252,7 +252,12 @@ Si vous n'utilisez pas le mode automatique, exécutez la synchronisation manuell
 **Cause possible** : Le programme est configuré pour synchroniser uniquement les contacts contenant "@exemple" dans leur email (mode test)
 
 **Solution** :
-- Si vous souhaitez synchroniser tous les contacts, contactez l'équipe technique pour modifier cette limitation
+- Utilisez le script `toggle_mode.py` pour basculer en mode production :
+  ```bash
+  python toggle_mode.py
+  ```
+- Ou modifiez manuellement la variable `TEST_MODE = False` dans le fichier `sync.py`
+- ⚠️ ATTENTION: Le mode production traitera TOUTE la base de données
 
 ### Je ne trouve pas les contacts synchronisés dans Copper/Mailchimp
 
@@ -357,3 +362,43 @@ find . -name "import_report_*.txt" -mtime +30 -delete
 # Ou supprimer tous les anciens logs (attention : perte des historiques)
 rm sync_log_*.txt import_report_*.txt
 ```
+
+## Optimisation et performance
+
+### Synchronisation intelligente
+Le programme intègre plusieurs optimisations pour éviter les synchronisations inutiles :
+
+- **Détection des contacts identiques** : Avant de synchroniser, le programme compare les données (nom, prénom, email) entre Copper et Mailchimp. Si les contacts sont identiques, aucune synchronisation n'est effectuée.
+
+- **Synchronisation différentielle** : Seuls les contacts qui ont réellement changé sont synchronisés, ce qui améliore considérablement les performances.
+
+- **Filtrage en amont** : En mode TEST, seuls les contacts avec "@exemple" sont récupérés et traités, réduisant la charge sur les APIs.
+
+### Messages d'information courants
+- `⏭️ Contact identique ignoré: email@exemple.com` : Le contact existe dans les deux systèmes avec des données identiques
+- `ℹ️ Aucune synchronisation nécessaire - tous les contacts sont à jour` : Tous les contacts sont déjà synchronisés
+- `✅ Synchronisation réussie : X contact(s) traité(s)` : Nombre de contacts réellement synchronisés
+
+Ces optimisations permettent d'exécuter le programme fréquemment (toutes les 15 minutes) sans impact sur les performances.
+
+## Modes de fonctionnement
+
+### Mode TEST (par défaut)
+- **Activation** : `TEST_MODE = True` dans le fichier `sync.py`
+- **Comportement** : Traite UNIQUEMENT les contacts avec des emails contenant "@exemple"
+- **Usage** : Tests, développement, validation des changements
+- **Sécurité** : Aucun risque pour la base de données complète
+
+### Mode PRODUCTION
+- **Activation** : `TEST_MODE = False` dans le fichier `sync.py`
+- **Comportement** : Traite TOUTE la base de données Copper et Mailchimp
+- **Usage** : Synchronisation complète en production
+- **Sécurité** : ⚠️ ATTENTION - Affecte tous les contacts
+
+### Basculement entre modes
+Utilisez le script `toggle_mode.py` pour basculer facilement :
+```bash
+python toggle_mode.py
+```
+
+Le script affiche le mode actuel et demande confirmation avant de basculer.

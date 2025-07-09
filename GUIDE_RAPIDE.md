@@ -4,6 +4,11 @@
 
 Ce programme synchronise vos contacts entre Copper et Mailchimp de manière périodique. Il gère également la suppression sécurisée et l'archivage intelligent des contacts avec un système de statut Actif/Inactif.
 
+### 🧪 Mode de fonctionnement
+- **Mode TEST** (par défaut) : Traite uniquement les emails "@exemple"
+- **Mode PRODUCTION** : Traite TOUTE la base de données
+- **Basculement** : Utilisez `python toggle_mode.py` pour changer de mode
+
 ## 🚀 Configuration initiale
 
 1. **Configuration automatique** :
@@ -27,6 +32,22 @@ Une fois configuré, le programme :
 - Synchronise tous les tags Copper vers Mailchimp
 - Génère des rapports à chaque exécution
 
+## 🚀 Optimisation automatique
+
+Le programme intègre plusieurs optimisations pour des performances maximales :
+
+### Synchronisation intelligente
+- **Contacts identiques** : Ignorés automatiquement (pas de synchronisation inutile)
+- **Filtrage en amont** : En mode TEST, seuls les contacts "@exemple" sont traités
+- **Synchronisation différentielle** : Seuls les contacts modifiés sont synchronisés
+
+### Messages d'optimisation courants
+- `⏭️ Contact identique ignoré` : Contact déjà à jour dans les deux systèmes
+- `ℹ️ Aucune synchronisation nécessaire` : Tous les contacts sont déjà synchronisés
+- `✅ Synchronisation réussie : X contact(s) traité(s)` : Nombre réel de contacts synchronisés
+
+Ces optimisations permettent d'exécuter le programme toutes les 15 minutes sans impact sur les performances.
+
 ## 📊 Où trouver les résultats
 
 Après chaque exécution, un fichier de log détaillé est créé dans le dossier du programme :
@@ -45,6 +66,12 @@ Ce fichier contient :
 ✅ Synchronisé avec tags: exemple@email.com (5 tags)
 ```
 ➡️ Contact synchronisé avec ses tags Copper vers Mailchimp.
+
+### Contact identique ignoré (⏭️)
+```
+⏭️ Contact identique ignoré: exemple@email.com
+```
+➡️ Contact déjà synchronisé avec données identiques - optimisation automatique.
 
 ### Contact exclu automatiquement (ℹ️)
 ```
