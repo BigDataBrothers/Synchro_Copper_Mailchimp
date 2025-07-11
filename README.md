@@ -150,7 +150,7 @@ Sync_Copper_Mailchimp/
     ├── DOCUMENTATION.md
     ├── GUIDE_TAG_SUPPRESSION.md
     ├── TESTS.md
-    └── TESTS_SUMMARY.md        # Résumé des tests
+    └── TESTS_SUMMARY.md
 ```
 
 ## 🔄 Workflow de synchronisation
