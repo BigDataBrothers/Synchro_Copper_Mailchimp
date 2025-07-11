@@ -1,7 +1,5 @@
 # 🔄 Copper ↔ Mailchimp Sync
 
-[![Tests](https://img.shields.io/badge/tests-99%20passed-brightgreen)](tests/)
-[![Coverage](https://img.shields.io/badge/coverage-72%25-green)](test_reports/)
 [![Python](https://img.shields.io/badge/python-3.7%2B-blue)](requirements.txt)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
