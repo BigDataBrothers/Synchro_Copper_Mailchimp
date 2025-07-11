@@ -64,7 +64,19 @@ run_sync_cron.sh
 sync_cron.log
 
 # Fichiers temporaires de développement
-test_*.py
+temp_*.py
 debug_*.py
 *_backup.*
+
+# Tests et couverture
+.coverage
+.pytest_cache/
+test_reports/
+htmlcov/
+coverage_html/
+
+# Fichiers sensibles (double sécurité)
+.env
+*.env
+config.ini
 

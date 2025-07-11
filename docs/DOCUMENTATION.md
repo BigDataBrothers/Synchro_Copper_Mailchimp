@@ -29,7 +29,9 @@ Pour des guides détaillés sur des fonctionnalités spécifiques :
 
 - **[GUIDE_RAPIDE.md](./GUIDE_RAPIDE.md)** : Démarrage rapide et utilisation quotidienne
 - **[GUIDE_TAG_SUPPRESSION.md](./GUIDE_TAG_SUPPRESSION.md)** : Gestion complète des tags de suppression et workflow d'archivage
-- **[README.md](./README.md)** : Vue d'ensemble technique du projet
+- **[TESTS.md](./TESTS.md)** : Documentation détaillée des tests
+- **[TESTS_SUMMARY.md](./TESTS_SUMMARY.md)** : Résumé de la batterie de tests
+- **[README principal](../README.md)** : Vue d'ensemble technique du projet
 
 ## Présentation du programme
 

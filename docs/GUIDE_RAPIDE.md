@@ -117,5 +117,12 @@ Contactez le support à support@votreentreprise.com en incluant :
 2. Fichiers de rapport générés
 3. Description du problème
 
+## 📚 Voir aussi
+
+- **[DOCUMENTATION.md](./DOCUMENTATION.md)** - Guide technique complet
+- **[GUIDE_TAG_SUPPRESSION.md](./GUIDE_TAG_SUPPRESSION.md)** - Gestion détaillée des suppressions
+- **[TESTS.md](./TESTS.md)** - Documentation des tests
+- **[TESTS_SUMMARY.md](./TESTS_SUMMARY.md)** - Résumé de la batterie de tests
+
 ---
 Pour une documentation complète, consultez le fichier DOCUMENTATION.md

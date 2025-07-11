@@ -73,10 +73,13 @@ def normalize_contact_data(contact_data):
 def contacts_are_identical(copper_contact, mailchimp_member):
     """Vérifie si un contact Copper et un membre Mailchimp sont identiques"""
     # Normaliser les données Copper
+    emails = copper_contact.get('emails', [])
+    copper_email = emails[0].get('email', '') if emails else ''
+    
     copper_data = {
         'first_name': (copper_contact.get('first_name') or '').strip(),
         'last_name': (copper_contact.get('last_name') or '').strip(),
-        'email': normalize_email(copper_contact.get('emails', [{}])[0].get('email', ''))
+        'email': normalize_email(copper_email)
     }
     
     # Normaliser les données Mailchimp

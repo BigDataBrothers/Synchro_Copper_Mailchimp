@@ -33,7 +33,7 @@ Le système de synchronisation Copper-Mailchimp détecte maintenant **automatiqu
 
 ### 2. Lancer la synchronisation
 ```bash
-cd /home/vboxuser/Desktop/copper_mailchimp_sync/Synchro_Copper_Mailchimp
+cd /path/to/your/Sync_Copper_Mailchimp
 python sync.py
 ```
 
@@ -211,3 +211,10 @@ tail -f sync_log_$(date +%Y-%m-%d)*.txt
 
 # Le script vous guidera pour traiter les contacts marqués
 ```
+
+## 📚 Voir aussi
+
+- **[DOCUMENTATION.md](./DOCUMENTATION.md)** - Guide technique complet
+- **[GUIDE_RAPIDE.md](./GUIDE_RAPIDE.md)** - Démarrage rapide
+- **[TESTS.md](./TESTS.md)** - Documentation des tests
+- **[TESTS_SUMMARY.md](./TESTS_SUMMARY.md)** - Résumé de la batterie de tests
